@@ -1,0 +1,686 @@
+import React, { useState, useRef, useEffect } from "react";
+
+const T = {
+  navy: "#0a1628",
+  navy2: "#0f1e38",
+  navy3: "#162544",
+  navyBorder: "rgba(255,255,255,0.07)",
+  accent: "#3b82f6",
+  accentHover: "#2563eb",
+  accentGlow: "rgba(59,130,246,0.25)",
+  white: "#ffffff",
+  offWhite: "#f0f4ff",
+  muted: "#8899bb",
+  mutedDark: "#4a5a7a",
+  success: "#10b981",
+  error: "#ef4444",
+  gold: "#f59e0b",
+  gradient: "linear-gradient(135deg, #1e40af, #3b82f6, #60a5fa)",
+  cardBg: "rgba(255,255,255,0.04)",
+  cardBorder: "rgba(255,255,255,0.08)",
+};
+
+const BACKGROUNDS = [
+  { id: "white", label: "Pure White", color: "#FFFFFF", category: "Studio" },
+  { id: "offwhite", label: "Off White", color: "#F8F5F0", category: "Studio" },
+  { id: "lightgray", label: "Light Gray", color: "#EEEEEE", category: "Studio" },
+  { id: "darkgray", label: "Dark Gray", color: "#333333", category: "Studio" },
+  { id: "black", label: "Black", color: "#111111", category: "Studio" },
+  { id: "navy", label: "Deep Navy", color: "#0a1628", category: "Studio" },
+  { id: "peach", label: "Soft Peach", g: ["#ffecd2","#fcb69f"], category: "Gradient" },
+  { id: "ocean", label: "Ocean Blue", g: ["#a1c4fd","#c2e9fb"], category: "Gradient" },
+  { id: "mint", label: "Mint Fresh", g: ["#d4fc79","#96e6a1"], category: "Gradient" },
+  { id: "rosegold", label: "Rose Gold", g: ["#f6d365","#fda085"], category: "Gradient" },
+  { id: "royal", label: "Royal Blue", g: ["#1e3a8a","#3b82f6"], category: "Gradient" },
+  { id: "night", label: "Night Sky", g: ["#0f0c29","#302b63"], category: "Gradient" },
+  { id: "saffron", label: "Saffron", g: ["#f7971e","#ffd200"], category: "Gradient" },
+  { id: "coral", label: "Coral", g: ["#ff9a9e","#fad0c4"], category: "Gradient" },
+];
+
+const SIZES = [
+  { id: "square", label: "1:1 Square", w: 1000, h: 1000 },
+  { id: "portrait", label: "4:5 Portrait", w: 1000, h: 1250 },
+  { id: "landscape", label: "16:9 Banner", w: 1600, h: 900 },
+  { id: "amazon", label: "Amazon 2000px", w: 2000, h: 2000 },
+];
+
+const PLANS = [
+  { name: "Starter", price: "₹0", period: "forever", features: ["5 images/month", "Basic backgrounds", "PNG download"], cta: "Start Free", highlight: false },
+  { name: "Pro", price: "₹499", period: "/month", features: ["Unlimited images", "All backgrounds", "AI descriptions", "All export sizes", "Priority support"], cta: "Get Pro", highlight: true },
+  { name: "Agency", price: "₹1,999", period: "/month", features: ["Everything in Pro", "5 team seats", "Bulk processing", "White-label", "Dedicated support"], cta: "Contact Sales", highlight: false },
+];
+
+const TESTIMONIALS = [
+  { name: "Rahul M.", role: "Amazon Seller, Mumbai", text: "Sales jumped 40% after switching to DigiShoot. My listings finally look professional.", avatar: "RM" },
+  { name: "Priya S.", role: "Meesho Reseller, Jaipur", text: "Background removal in one click. I process 50 photos in the time it used to take for 5.", avatar: "PS" },
+  { name: "Karan T.", role: "Flipkart Seller, Delhi", text: "Best investment for my store. Competitors' photos look amateur compared to mine now.", avatar: "KT" },
+];
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+}
+
+function drawBg(ctx, bgId, w, h) {
+  const bg = BACKGROUNDS.find(b => b.id === bgId) || BACKGROUNDS[0];
+  if (bg.g) {
+    const grad = ctx.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, bg.g[0]);
+    grad.addColorStop(1, bg.g[1]);
+    ctx.fillStyle = grad;
+  } else {
+    ctx.fillStyle = bg.color;
+  }
+  ctx.fillRect(0, 0, w, h);
+}
+
+function PreviewCanvas({ imgSrc, bgId, sizeId }) {
+  const canvasRef = useRef();
+  const [loadError, setLoadError] = useState(false);
+  const size = SIZES.find(s => s.id === sizeId) || SIZES[0];
+  const maxW = 420;
+  const scale = maxW / size.w;
+  const W = Math.round(size.w * scale);
+  const H = Math.round(size.h * scale);
+
+  useEffect(() => {
+    setLoadError(false);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    drawBg(ctx, bgId, W, H);
+    if (!imgSrc) return;
+    const img = new Image();
+    img.onload = () => {
+      drawBg(ctx, bgId, W, H);
+      const s = Math.min((W * 0.82) / img.width, (H * 0.82) / img.height);
+      const dw = img.width * s, dh = img.height * s;
+      ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    };
+    img.onerror = () => setLoadError(true);
+    img.src = imgSrc;
+  }, [imgSrc, bgId, sizeId, W, H]);
+
+  return (
+    <div>
+      <canvas ref={canvasRef} width={W} height={H}
+        style={{ borderRadius: 12, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", display: "block", maxWidth: "100%" }} />
+      {loadError && (
+        <div style={{ marginTop: 8, fontSize: 12, color: T.error, textAlign: "center" }}>Image failed to load</div>
+      )}
+    </div>
+  );
+}
+
+function BeforeAfterSlider({ beforeSrc, afterSrc }) {
+  const [pos, setPos] = useState(50);
+  const [dragging, setDragging] = useState(false);
+  const containerRef = useRef();
+
+  const updatePos = (clientX) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPos(Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)));
+  };
+
+  const handleMove = (e) => {
+    if (!dragging) return;
+    updatePos(e.touches ? e.touches[0].clientX : e.clientX);
+  };
+  const handleEnd = () => setDragging(false);
+  const handleStart = (e) => {
+    e.preventDefault();
+    setDragging(true);
+    updatePos(e.touches ? e.touches[0].clientX : e.clientX);
+  };
+
+  useEffect(() => {
+    if (!dragging) return;
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleEnd);
+    document.addEventListener("touchmove", handleMove, { passive: false });
+    document.addEventListener("touchend", handleEnd);
+    return () => {
+      document.removeEventListener("mousemove", handleMove);
+      document.removeEventListener("mouseup", handleEnd);
+      document.removeEventListener("touchmove", handleMove);
+      document.removeEventListener("touchend", handleEnd);
+    };
+  }, [dragging]);
+
+  if (!beforeSrc || !afterSrc) return null;
+  return (
+    <div style={{ borderRadius: 12, overflow: "hidden", position: "relative", cursor: "ew-resize", userSelect: "none", width: 420, height: 280, boxShadow: "0 10px 40px rgba(0,0,0,0.4)" }}
+      ref={containerRef} onMouseDown={handleStart} onTouchStart={handleStart} onMouseMove={handleMove} onTouchMove={handleMove}>
+      <img src={beforeSrc} alt="before" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${pos}%` }}>
+        <img src={afterSrc} alt="after" style={{ position: "absolute", inset: 0, width: 420, height: "100%", objectFit: "cover", maxWidth: "none" }} />
+      </div>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: `${pos}%`, width: 2, background: T.accent, transform: "translateX(-50%)" }}>
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 32, height: 32, borderRadius: "50%", background: T.accent, boxShadow: `0 0 0 3px rgba(59,130,246,0.3)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff" }}>↔</div>
+      </div>
+      <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(10,22,40,0.8)", backdropFilter: "blur(4px)", color: T.accent, borderRadius: 6, padding: "3px 10px", fontSize: 10, fontWeight: 700, letterSpacing: 1, border: `1px solid ${T.cardBorder}` }}>AFTER</div>
+      <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(10,22,40,0.8)", backdropFilter: "blur(4px)", color: T.muted, borderRadius: 6, padding: "3px 10px", fontSize: 10, fontWeight: 700, letterSpacing: 1, border: `1px solid ${T.cardBorder}` }}>BEFORE</div>
+    </div>
+  );
+}
+
+function Btn({ children, onClick, variant = "primary", disabled, small }) {
+  const styles = {
+    primary: { background: T.gradient, color: "#fff", border: "none", boxShadow: `0 4px 20px ${T.accentGlow}` },
+    ghost: { background: "transparent", color: T.muted, border: `1px solid ${T.cardBorder}` },
+    outline: { background: "rgba(59,130,246,0.08)", color: T.accent, border: `1px solid rgba(59,130,246,0.25)` },
+    success: { background: "rgba(16,185,129,0.1)", color: T.success, border: "1px solid rgba(16,185,129,0.25)" },
+    danger: { background: "rgba(239,68,68,0.1)", color: T.error, border: "1px solid rgba(239,68,68,0.2)" },
+  };
+  return (
+    <button onClick={onClick} disabled={disabled}
+      style={{ ...styles[variant], borderRadius: 8, padding: small ? "4px 10px" : "8px 18px", fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", fontSize: small ? 11 : 13, opacity: disabled ? 0.5 : 1, transition: "all 0.15s", fontFamily: "inherit" }}>
+      {children}
+    </button>
+  );
+}
+
+export default function App() {
+  const [page, setPage] = useState("landing");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [openaiConnected, setOpenaiConnected] = useState(false);
+  const [clipdropKey, setClipdropKey] = useState("");
+  const [clipdropConnected, setClipdropConnected] = useState(false);
+  const [showKeys, setShowKeys] = useState(false);
+  const [images, setImages] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [selectedBg, setSelectedBg] = useState("white");
+  const [selectedSize, setSelectedSize] = useState("square");
+  const [generating, setGenerating] = useState(false);
+  const [removingBg, setRemovingBg] = useState(false);
+  const [status, setStatus] = useState(null);
+  const [validatingOpenai, setValidatingOpenai] = useState(false);
+  const fileRef = useRef();
+  const activeImg = images.find(i => i.id === activeId);
+  const bgCategories = [...new Set(BACKGROUNDS.map(b => b.category))];
+
+  const setStatusMsg = (type, msg, autoClear = true) => {
+    setStatus({ type, msg });
+    if (autoClear) setTimeout(() => setStatus(null), 4000);
+  };
+
+  const handleFiles = async (files) => {
+    const arr = Array.from(files).filter(f => f.type.startsWith("image/"));
+    const newImgs = await Promise.all(arr.map(async (f) => ({
+      id: Math.random().toString(36).slice(2),
+      name: f.name, file: f,
+      dataUrl: await readFileAsDataURL(f),
+      cleanDataUrl: null, description: null,
+    })));
+    setImages(prev => [...prev, ...newImgs]);
+    if (newImgs.length) { setActiveId(newImgs[0].id); setPage("studio"); }
+  };
+
+  const deleteImage = (imgId) => {
+    const remaining = images.filter(i => i.id !== imgId);
+    setImages(remaining);
+    setActiveId(remaining.length ? remaining[0].id : null);
+  };
+
+  const validateOpenaiKey = async () => {
+    if (!openaiKey.trim()) return;
+    setValidatingOpenai(true);
+    try {
+      const res = await fetch("https://api.openai.com/v1/models", {
+        headers: { "Authorization": `Bearer ${openaiKey}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || res.statusText || "Invalid key");
+      }
+      setOpenaiConnected(true);
+      setStatusMsg("success", "✓ OpenAI key valid");
+    } catch (e) {
+      setOpenaiConnected(false);
+      setStatusMsg("error", "OpenAI: " + (e.message || "Invalid key"), false);
+    }
+    setValidatingOpenai(false);
+  };
+
+  const validateClipdropKey = () => {
+    if (!clipdropKey.trim()) return;
+    setClipdropConnected(true);
+    setStatusMsg("success", "Key saved — we'll verify when you remove a background");
+  };
+
+  const removeBg = async () => {
+    if (!clipdropConnected) { setStatusMsg("error", "Add your ClipDrop API key first — free at clipdrop.co", false); return; }
+    if (!activeImg) return;
+    setRemovingBg(true);
+    setStatusMsg("info", "Removing background...", false);
+    try {
+      const form = new FormData();
+      form.append("image_file", activeImg.file);
+      const res = await fetch("https://clipdrop-api.co/remove-background/v1", {
+        method: "POST", headers: { "x-api-key": clipdropKey }, body: form,
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        if (res.status === 401 || res.status === 403) setClipdropConnected(false);
+        throw new Error(errText || res.statusText);
+      }
+      const blob = await res.blob();
+      const cleanDataUrl = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+      setImages(prev => prev.map(i => i.id === activeId ? { ...i, cleanDataUrl } : i));
+      setStatusMsg("success", "✓ Background removed successfully");
+    } catch (e) {
+      setStatusMsg("error", "Failed: " + e.message);
+      if (e.message && (e.message.includes("401") || e.message.includes("403") || e.message.includes("Unauthorized") || e.message.includes("Invalid") || e.message.includes("api key"))) setClipdropConnected(false);
+    }
+    setRemovingBg(false);
+  };
+
+  const generateDesc = async () => {
+    if (!openaiConnected || !activeImg) return;
+    setGenerating(true);
+    setStatusMsg("info", "Generating AI description...", false);
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` },
+        body: JSON.stringify({
+          model: "gpt-4o", max_tokens: 500,
+          messages: [{ role: "user", content: [
+            { type: "image_url", image_url: { url: activeImg.dataUrl } },
+            { type: "text", text: `Expert Indian e-commerce copywriter for Amazon India, Flipkart, Meesho. Analyze this product. Return ONLY valid JSON:\n{"title":"catchy title max 80 chars","bullets":["feature 1","feature 2","feature 3"],"description":"2 sentence SEO description","keywords":["kw1","kw2","kw3","kw4"]}` }
+          ]}]
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      const parsed = JSON.parse((data.choices?.[0]?.message?.content || "{}").replace(/```json|```/g, "").trim());
+      setImages(prev => prev.map(i => i.id === activeId ? { ...i, description: parsed } : i));
+      setStatusMsg("success", "✓ Description generated");
+    } catch (e) { setStatusMsg("error", "Error: " + e.message); }
+    setGenerating(false);
+  };
+
+  const download = () => {
+    if (!activeImg) return;
+    const size = SIZES.find(s => s.id === selectedSize);
+    const canvas = document.createElement("canvas");
+    canvas.width = size.w; canvas.height = size.h;
+    const ctx = canvas.getContext("2d");
+    drawBg(ctx, selectedBg, size.w, size.h);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min((size.w * 0.82) / img.width, (size.h * 0.82) / img.height);
+      const dw = img.width * s, dh = img.height * s;
+      ctx.drawImage(img, (size.w - dw) / 2, (size.h - dh) / 2, dw, dh);
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = activeImg.name.replace(/\.[^.]+$/, "") + "_digishoot.png";
+      a.click();
+    };
+    img.src = activeImg.cleanDataUrl || activeImg.dataUrl;
+  };
+
+  const Nav = ({ light }) => (
+    <nav style={{ position: "sticky", top: 0, zIndex: 100, background: light ? "rgba(255,255,255,0.97)" : `rgba(10,22,40,0.97)`, backdropFilter: "blur(16px)", borderBottom: `1px solid ${light ? "rgba(0,0,0,0.07)" : T.navyBorder}`, padding: "0 32px", display: "flex", alignItems: "center", height: 60 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 }} onClick={() => setPage("landing")}>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>📸</div>
+        <span style={{ fontWeight: 800, fontSize: 17, background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "-0.3px" }}>DigiShoot.ai</span>
+      </div>
+      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        {[["landing","Home"],["studio","Studio"],["pricing","Pricing"]].map(([p, label]) => (
+          <button key={p} onClick={() => setPage(p)}
+            style={{ background: page === p ? (light ? "rgba(59,130,246,0.08)" : "rgba(59,130,246,0.12)") : "transparent", border: "none", borderRadius: 8, padding: "7px 14px", color: page === p ? T.accent : light ? "#555" : T.muted, fontWeight: page === p ? 700 : 500, cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </nav>
+  );
+
+  // ── LANDING ──────────────────────────────────────────────────────
+  if (page === "landing") return (
+    <div style={{ fontFamily: "'Inter','Segoe UI',sans-serif", background: T.navy, color: T.white, minHeight: "100vh" }}>
+      <Nav />
+
+      {/* Hero */}
+      <div style={{ padding: "100px 32px 80px", maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", gap: 60, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 300 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: 600, color: T.accent, marginBottom: 24 }}>
+            <span>🇮🇳</span> Built for Indian E-commerce Sellers
+          </div>
+          <h1 style={{ fontSize: "clamp(32px,5vw,56px)", fontWeight: 900, lineHeight: 1.1, margin: "0 0 20px", letterSpacing: "-1px" }}>
+            Professional Product<br />
+            <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Photos in Seconds</span>
+          </h1>
+          <p style={{ fontSize: 17, color: T.muted, lineHeight: 1.7, maxWidth: 460, marginBottom: 36 }}>
+            Remove backgrounds, add studio backdrops & generate AI-powered listings for Amazon, Flipkart and Meesho — no designer needed.
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button onClick={() => { setPage("studio"); setTimeout(() => fileRef.current?.click(), 100); }}
+              style={{ background: T.gradient, border: "none", borderRadius: 10, padding: "14px 32px", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", boxShadow: `0 8px 30px ${T.accentGlow}`, fontFamily: "inherit" }}>
+              Try Free — Upload Photo →
+            </button>
+            <button onClick={() => setPage("pricing")}
+              style={{ background: "transparent", border: `1px solid ${T.cardBorder}`, borderRadius: 10, padding: "14px 24px", color: T.muted, fontWeight: 600, fontSize: 16, cursor: "pointer", fontFamily: "inherit" }}>
+              See Pricing
+            </button>
+          </div>
+          <div style={{ marginTop: 16, fontSize: 12, color: T.mutedDark }}>No credit card · 5 free images · Cancel anytime</div>
+        </div>
+
+        {/* Hero visual */}
+        <div style={{ flex: 1, minWidth: 280, display: "flex", justifyContent: "center" }}>
+          <div style={{ position: "relative" }}>
+            <div style={{ width: 300, height: 300, borderRadius: 20, background: "linear-gradient(135deg,#1e3a8a,#1e40af)", border: `1px solid rgba(59,130,246,0.2)`, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: 64 }}>📦</div>
+              <div style={{ fontSize: 13, color: T.muted, textAlign: "center", lineHeight: 1.5 }}>Upload any product photo<br />Get studio quality instantly</div>
+            </div>
+            {[["✂ BG Removed", "#10b981", "top:-16px", "right:-16px"],["🎨 14 Backgrounds", T.accent, "bottom:-16px", "left:-16px"],["⬇ 2000px Export", T.gold, "bottom:-16px", "right:-16px"]].map(([label, color, top, side]) => (
+              <div key={label} style={{ position: "absolute", [top.split(":")[0]]: top.split(":")[1], [Object.keys({top,right:0,bottom:0,left:0}).find(k => side.startsWith(k))]: side.split(":")[1], background: T.navy2, border: `1px solid ${T.cardBorder}`, borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 700, color, whiteSpace: "nowrap", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats bar */}
+      <div style={{ borderTop: `1px solid ${T.navyBorder}`, borderBottom: `1px solid ${T.navyBorder}`, padding: "28px 32px", display: "flex", justifyContent: "center", gap: 0, flexWrap: "wrap" }}>
+        {[["10,000+","Photos Processed"],["500+","Active Sellers"],["40%","Avg Sales Increase"],["< 2 min","Per Photo"]].map(([val, label], i, arr) => (
+          <div key={label} style={{ textAlign: "center", padding: "0 48px", borderRight: i < arr.length-1 ? `1px solid ${T.navyBorder}` : "none" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: T.white }}>{val}</div>
+            <div style={{ fontSize: 12, color: T.mutedDark, marginTop: 4 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Features */}
+      <div style={{ padding: "80px 32px", maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 52 }}>
+          <h2 style={{ fontSize: 36, fontWeight: 900, margin: "0 0 12px", letterSpacing: "-0.5px" }}>Everything you need to sell more</h2>
+          <p style={{ color: T.muted, fontSize: 16 }}>Built specifically for Indian e-commerce sellers</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 20 }}>
+          {[
+            ["✂️","BG Removal","One-click background removal. Perfect white backgrounds for Amazon listings."],
+            ["🎨","14 Backgrounds","Studio whites, gradients, textures. Match any product aesthetic."],
+            ["🤖","AI Descriptions","GPT-4o writes titles, bullet points and SEO keywords for Flipkart."],
+            ["📦","Bulk Upload","Process your entire catalog at once. Save hours every week."],
+            ["📐","All Export Sizes","Amazon 2000px, Instagram square, banners — all ready to upload."],
+            ["⚡","Instant Download","High-res PNG, no watermarks, no waiting."],
+          ].map(([icon, title, desc]) => (
+            <div key={title} style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "28px 22px", transition: "border-color 0.2s" }}>
+              <div style={{ fontSize: 28, marginBottom: 14 }}>{icon}</div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>{title}</div>
+              <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>{desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Testimonials */}
+      <div style={{ borderTop: `1px solid ${T.navyBorder}`, padding: "80px 32px", background: T.navy2 }}>
+        <div style={{ textAlign: "center", marginBottom: 52 }}>
+          <h2 style={{ fontSize: 36, fontWeight: 900, margin: "0 0 12px", letterSpacing: "-0.5px" }}>Trusted by Indian sellers</h2>
+          <p style={{ color: T.muted, fontSize: 16 }}>Real results, real people</p>
+        </div>
+        <div style={{ display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap", maxWidth: 920, margin: "0 auto" }}>
+          {TESTIMONIALS.map(t => (
+            <div key={t.name} style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "28px 24px", maxWidth: 270, flex: 1, minWidth: 220 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 16 }}>{t.avatar}</div>
+              <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.7, marginBottom: 16, fontStyle: "italic" }}>"{t.text}"</p>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>{t.name}</div>
+              <div style={{ fontSize: 12, color: T.mutedDark }}>{t.role}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div style={{ padding: "80px 32px", textAlign: "center", borderTop: `1px solid ${T.navyBorder}` }}>
+        <h2 style={{ fontSize: 40, fontWeight: 900, marginBottom: 16, letterSpacing: "-0.5px" }}>Ready to boost your sales?</h2>
+        <p style={{ color: T.muted, fontSize: 16, marginBottom: 36 }}>Join 500+ Indian sellers already using DigiShoot.ai</p>
+        <button onClick={() => { setPage("studio"); setTimeout(() => fileRef.current?.click(), 100); }}
+          style={{ background: T.gradient, border: "none", borderRadius: 12, padding: "16px 44px", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer", boxShadow: `0 8px 30px ${T.accentGlow}`, fontFamily: "inherit" }}>
+          Start Free Today →
+        </button>
+      </div>
+
+      <div style={{ textAlign: "center", padding: "20px", borderTop: `1px solid ${T.navyBorder}`, fontSize: 12, color: T.mutedDark }}>
+        © 2026 DigiShoot.ai · Made with ❤️ in India
+      </div>
+      <input ref={fileRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => handleFiles(e.target.files)} />
+    </div>
+  );
+
+  // ── PRICING ──────────────────────────────────────────────────────
+  if (page === "pricing") return (
+    <div style={{ fontFamily: "'Inter','Segoe UI',sans-serif", background: T.navy, color: T.white, minHeight: "100vh" }}>
+      <Nav />
+      <div style={{ padding: "80px 32px", maxWidth: 900, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <h1 style={{ fontSize: 44, fontWeight: 900, marginBottom: 12, letterSpacing: "-1px" }}>Simple, transparent pricing</h1>
+          <p style={{ color: T.muted, fontSize: 16 }}>Start free. Upgrade when you're ready.</p>
+        </div>
+        <div style={{ display: "flex", gap: 24, justifyContent: "center", flexWrap: "wrap", alignItems: "flex-start" }}>
+          {PLANS.map(plan => (
+            <div key={plan.name} style={{ background: plan.highlight ? T.navy3 : T.cardBg, border: `1px solid ${plan.highlight ? T.accent : T.cardBorder}`, borderRadius: 20, padding: "36px 30px", width: 250, position: "relative", boxShadow: plan.highlight ? `0 0 40px ${T.accentGlow}` : "none" }}>
+              {plan.highlight && (
+                <div style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", background: T.gradient, borderRadius: 20, padding: "4px 18px", fontSize: 11, fontWeight: 800, color: "#fff", whiteSpace: "nowrap", letterSpacing: 0.5 }}>MOST POPULAR</div>
+              )}
+              <div style={{ fontSize: 16, fontWeight: 700, color: T.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>{plan.name}</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+                <span style={{ fontSize: 42, fontWeight: 900, color: plan.highlight ? T.white : T.muted }}>{plan.price}</span>
+                <span style={{ fontSize: 14, color: T.mutedDark }}>{plan.period}</span>
+              </div>
+              <div style={{ height: 1, background: T.cardBorder, margin: "20px 0" }} />
+              {plan.features.map(f => (
+                <div key={f} style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "flex-start" }}>
+                  <span style={{ color: T.accent, fontWeight: 700, marginTop: 1 }}>✓</span>
+                  <span style={{ fontSize: 13, color: T.muted, lineHeight: 1.4 }}>{f}</span>
+                </div>
+              ))}
+              <button onClick={() => setPage("studio")}
+                style={{ width: "100%", marginTop: 24, background: plan.highlight ? T.gradient : "transparent", border: plan.highlight ? "none" : `1px solid ${T.cardBorder}`, borderRadius: 10, padding: "12px", color: plan.highlight ? "#fff" : T.muted, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", boxShadow: plan.highlight ? `0 4px 20px ${T.accentGlow}` : "none" }}>
+                {plan.cta}
+              </button>
+            </div>
+          ))}
+        </div>
+        <p style={{ textAlign: "center", marginTop: 48, color: T.mutedDark, fontSize: 13 }}>
+          💳 Razorpay · UPI · Net Banking · All Indian cards accepted
+        </p>
+      </div>
+    </div>
+  );
+
+  // ── STUDIO ───────────────────────────────────────────────────────
+  return (
+    <div style={{ fontFamily: "'Inter','Segoe UI',sans-serif", minHeight: "100vh", background: T.navy, color: T.white, display: "flex", flexDirection: "column" }}>
+      {/* Studio Nav */}
+      <div style={{ background: T.navy2, borderBottom: `1px solid ${T.navyBorder}`, padding: "0 20px", height: 56, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => setPage("landing")}>
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>📸</div>
+          <span style={{ fontWeight: 800, fontSize: 14, background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>DigiShoot.ai</span>
+        </div>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setPage("pricing")}
+          style={{ background: T.gradient, border: "none", borderRadius: 7, padding: "6px 14px", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 12, fontFamily: "inherit", boxShadow: `0 2px 12px ${T.accentGlow}` }}>
+          Upgrade
+        </button>
+        <button onClick={() => setShowKeys(!showKeys)}
+          style={{ background: showKeys ? "rgba(59,130,246,0.12)" : "transparent", border: `1px solid ${T.cardBorder}`, borderRadius: 7, padding: "6px 12px", color: T.muted, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
+          ⚙ API Keys
+        </button>
+      </div>
+
+      {/* Status bar */}
+      {status && (
+        <div style={{ padding: "8px 20px", fontSize: 12, fontWeight: 600,
+          background: status.type === "error" ? "rgba(239,68,68,0.1)" : status.type === "success" ? "rgba(16,185,129,0.1)" : "rgba(59,130,246,0.1)",
+          color: status.type === "error" ? T.error : status.type === "success" ? T.success : T.accent,
+          borderBottom: `1px solid ${T.navyBorder}` }}>
+          {status.msg}
+        </div>
+      )}
+
+      {/* Keys panel */}
+      {showKeys && (
+        <div style={{ background: T.navy2, borderBottom: `1px solid ${T.navyBorder}`, padding: "14px 20px", display: "flex", gap: 20, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <div style={{ fontSize: 11, color: T.mutedDark, marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>OpenAI Key — AI descriptions (platform.openai.com)</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={openaiKey} onChange={e => setOpenaiKey(e.target.value)} type="password" placeholder="sk-proj-..."
+                style={{ flex: 1, background: T.cardBg, border: `1px solid ${T.cardBorder}`, borderRadius: 7, padding: "7px 11px", color: T.white, fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+              <button onClick={validateOpenaiKey} disabled={!openaiKey.trim() || validatingOpenai}
+                style={{ background: openaiConnected ? "rgba(16,185,129,0.15)" : T.gradient, border: openaiConnected ? "1px solid rgba(16,185,129,0.3)" : "none", borderRadius: 7, padding: "7px 14px", color: openaiConnected ? T.success : "#fff", fontWeight: 700, cursor: validatingOpenai ? "wait" : "pointer", fontSize: 12, fontFamily: "inherit", opacity: validatingOpenai ? 0.7 : 1 }}>
+                {validatingOpenai ? "Checking..." : openaiConnected ? "✓ Connected" : "Connect"}
+              </button>
+            </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <div style={{ fontSize: 11, color: T.mutedDark, marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>ClipDrop Key — BG removal (free at clipdrop.co — 100/month)</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={clipdropKey} onChange={e => setClipdropKey(e.target.value)} type="password" placeholder="ClipDrop API key..."
+                style={{ flex: 1, background: T.cardBg, border: `1px solid ${T.cardBorder}`, borderRadius: 7, padding: "7px 11px", color: T.white, fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+              <button onClick={validateClipdropKey} disabled={!clipdropKey.trim()}
+                style={{ background: clipdropConnected ? "rgba(16,185,129,0.15)" : T.gradient, border: clipdropConnected ? "1px solid rgba(16,185,129,0.3)" : "none", borderRadius: 7, padding: "7px 14px", color: clipdropConnected ? T.success : "#fff", fontWeight: 700, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
+                {clipdropConnected ? "✓ Saved" : "Save key"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+        {/* Left sidebar */}
+        <div style={{ width: 180, background: T.navy2, borderRight: `1px solid ${T.navyBorder}`, display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: 10 }}>
+            <button onClick={() => fileRef.current.click()}
+              style={{ width: "100%", background: T.gradient, border: "none", borderRadius: 8, padding: "9px", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 13, fontFamily: "inherit", boxShadow: `0 4px 16px ${T.accentGlow}` }}>
+              + Upload Images
+            </button>
+            <input ref={fileRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => handleFiles(e.target.files)} />
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "0 8px 8px" }}>
+            {images.length === 0 && (
+              <div style={{ textAlign: "center", color: T.mutedDark, padding: "30px 8px", fontSize: 11 }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>🖼️</div>Upload product photos to begin
+              </div>
+            )}
+            {images.map(img => (
+              <div key={img.id} style={{ position: "relative", marginBottom: 8 }}>
+                <div onClick={() => setActiveId(img.id)}
+                  style={{ borderRadius: 8, overflow: "hidden", cursor: "pointer", border: activeId === img.id ? `2px solid ${T.accent}` : `2px solid transparent` }}>
+                  <img src={img.cleanDataUrl || img.dataUrl} alt={img.name}
+                    style={{ width: "100%", height: 96, objectFit: "cover", display: "block", background: T.navy3 }} />
+                  {img.cleanDataUrl && (
+                    <div style={{ position: "absolute", top: 4, left: 4, background: "rgba(16,185,129,0.9)", borderRadius: 4, padding: "2px 6px", fontSize: 9, fontWeight: 700 }}>BG ✓</div>
+                  )}
+                  <div style={{ padding: "5px 7px", background: T.navy3, fontSize: 10, color: T.mutedDark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.name}</div>
+                </div>
+                <button onClick={() => deleteImage(img.id)}
+                  style={{ position: "absolute", top: 4, right: 4, background: "rgba(239,68,68,0.9)", border: "none", borderRadius: 4, width: 20, height: 20, color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Center */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+          {/* Toolbar */}
+          <div style={{ background: T.navy2, borderBottom: `1px solid ${T.navyBorder}`, padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10, color: T.mutedDark, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Size</span>
+            {SIZES.map(s => (
+              <button key={s.id} onClick={() => setSelectedSize(s.id)}
+                style={{ background: selectedSize === s.id ? "rgba(59,130,246,0.15)" : "transparent", border: `1px solid ${selectedSize === s.id ? T.accent : T.cardBorder}`, borderRadius: 6, padding: "4px 10px", color: selectedSize === s.id ? T.accent : T.mutedDark, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit" }}>
+                {s.label}
+              </button>
+            ))}
+            <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              {activeImg && (<>
+                <button onClick={removeBg} disabled={removingBg}
+                  style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 7, padding: "6px 14px", color: T.success, cursor: removingBg ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, opacity: removingBg ? 0.5 : 1, fontFamily: "inherit" }}>
+                  {removingBg ? "⏳ Removing..." : "✂ Remove BG"}
+                </button>
+                {openaiConnected && (
+                  <button onClick={generateDesc} disabled={generating}
+                    style={{ background: "rgba(59,130,246,0.1)", border: `1px solid rgba(59,130,246,0.25)`, borderRadius: 7, padding: "6px 14px", color: T.accent, cursor: generating ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, opacity: generating ? 0.5 : 1, fontFamily: "inherit" }}>
+                    {generating ? "⏳ Writing..." : "✨ AI Description"}
+                  </button>
+                )}
+                <button onClick={download}
+                  style={{ background: T.gradient, border: "none", borderRadius: 7, padding: "6px 16px", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit", boxShadow: `0 2px 12px ${T.accentGlow}` }}>
+                  ⬇ Download
+                </button>
+              </>)}
+            </div>
+          </div>
+
+          {/* Canvas */}
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto", background: T.navy, gap: 24, flexWrap: "wrap" }}>
+            {!activeImg ? (
+              <div onClick={() => fileRef.current.click()}
+                style={{ border: `2px dashed ${T.navyBorder}`, borderRadius: 16, padding: "60px 40px", textAlign: "center", cursor: "pointer", color: T.mutedDark, maxWidth: 360 }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: T.muted }}>Upload a product photo</div>
+                <div style={{ fontSize: 13 }}>JPG, PNG, WebP · Bulk upload supported</div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+                <PreviewCanvas imgSrc={activeImg.cleanDataUrl || activeImg.dataUrl} bgId={selectedBg} sizeId={selectedSize} />
+                {activeImg.cleanDataUrl && (
+                  <div>
+                    <div style={{ fontSize: 10, color: T.mutedDark, textAlign: "center", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>Before / After</div>
+                    <BeforeAfterSlider beforeSrc={activeImg.dataUrl} afterSrc={activeImg.cleanDataUrl} />
+                  </div>
+                )}
+                {activeImg.description && (
+                  <div style={{ width: 420, background: T.navy2, borderRadius: 12, padding: 16, border: `1px solid ${T.cardBorder}` }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: T.white }}>🛒 {activeImg.description.title}</div>
+                    {activeImg.description.bullets?.map((b, i) => (
+                      <div key={i} style={{ fontSize: 12, color: T.muted, marginBottom: 5, paddingLeft: 10, borderLeft: `2px solid ${T.accent}` }}>• {b}</div>
+                    ))}
+                    <div style={{ fontSize: 11, color: T.mutedDark, marginTop: 10, lineHeight: 1.6 }}>{activeImg.description.description}</div>
+                    <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {activeImg.description.keywords?.map((k, i) => (
+                        <span key={i} style={{ background: "rgba(59,130,246,0.08)", border: `1px solid rgba(59,130,246,0.2)`, borderRadius: 20, padding: "2px 10px", fontSize: 10, color: T.accent }}>#{k}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right BG Picker */}
+        <div style={{ width: 196, background: T.navy2, borderLeft: `1px solid ${T.navyBorder}`, overflowY: "auto", padding: "12px 10px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: T.mutedDark, marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 }}>Backgrounds</div>
+          {bgCategories.map(cat => (
+            <div key={cat} style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 9, color: T.mutedDark, marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>{cat}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+                {BACKGROUNDS.filter(b => b.category === cat).map(bg => (
+                  <div key={bg.id} onClick={() => setSelectedBg(bg.id)}
+                    style={{ borderRadius: 7, overflow: "hidden", cursor: "pointer", border: selectedBg === bg.id ? `2px solid ${T.accent}` : "2px solid transparent", transition: "border 0.15s" }}>
+                    <div style={{ height: 40, background: bg.g ? `linear-gradient(135deg,${bg.g[0]},${bg.g[1]})` : bg.color }} />
+                    <div style={{ background: T.navy3, padding: "3px 5px", fontSize: 9, color: T.mutedDark, textAlign: "center" }}>{bg.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <style>{`* { box-sizing: border-box; } ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: ${T.navy3}; border-radius: 3px; }`}</style>
+    </div>
+  );
+}
